@@ -1,0 +1,25 @@
+{
+  "name": "project-4",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "app": "electron ./client/views"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "electron": "^32.0.1",
+    "express": "^4.19.2",
+    "mqtt": "^5.10.1",
+    "redis": "^4.7.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.13.3"
+  }
+}

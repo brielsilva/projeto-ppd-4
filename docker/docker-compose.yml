@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # app:
+  #   build: ..
+  #   container_name: node_app
+  #   restart: always
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - rabbitmq
+  #     - redis
+  #   environment:
+  #     RABBITMQ_URL: amqp://rabbitmq
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #   networks:
+  #     - app-network
+
+  rabbitmq:
+    image: "rabbitmq:3.8-management"
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-network
+
+  redis:
+    image: "redis:6.2-alpine"
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

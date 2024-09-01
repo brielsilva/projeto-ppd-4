@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <title>Hello from Electron renderer!</title>
+    <link rel="stylesheet" type="text/css" href="./style/styles.css">
+  </head>
+  <body>
+    <div class="container-info-contact">
+        <div class="user-info">
+            <div class="user-name"></div>
+            <div class="user-status">
+                <span>Status: <span id="statusText">Online</span></span>
+                <button id="toggleStatus">Alterar Status</button>
+            </div>
+            <div class="btn-add">Adicionar Contato</div>
+        </div>
+        <div class="contact-list">
+        </div>
+    </div>
+    <div class="divider"></div>
+    <div class="chat">
+        <div class="contact-info">
+        </div>
+        <div class="chat-history">
+        </div>
+        <div class="message-input">
+            <form id="messageForm">
+                <input type="text" id="message" nam e="message" placeholder="Digite sua mensagem..." required>
+                <button type="submit" id="btn-send">Enviar</button>
+            </form>
+        </div>
+    </div>
+
+
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Adicionar Contato</h2>
+            <form id="contactForm">
+                <div>
+                    <label for="name">Nome:</label>
+                    <input type="text" id="name" name="name-contact" required placeholder="Nome do Contato" tabindex="1">
+                    <button type="submit">Salvar</button>   
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="nameModal" class="modal-name show">
+        <div class="modal-content-name">
+            <h2>Por favor, insira seu nome</h2>
+            <form id="nameForm">
+                <div>
+                    <label for="name-user">Nome:</label>
+                    <input type="text" id="name-user" name="name" required placeholder="Nome com ao menos 3 letras">
+                </div>
+                <button type="submit-name">Enviar</button>
+            </form>
+        </div>
+    </div>
+    <script src="./ui.js"></script>
+  </body>
+</html>
