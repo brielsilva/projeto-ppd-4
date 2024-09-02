@@ -129,9 +129,19 @@ class UiAdapter {
     };
     
 
-    addNewMessage(contactName, content) {
-        this.service.sendMessageSocket(contactName, content);
-        this.updateChatUI(contactName);
+    async addNewMessage(contactName, content) {
+        console.log("SENDING MESSAGE")
+        const contact = this.service.contactList.find((obj) => obj.name == contactName);
+        console.log(contact)
+        if(contact.connection) {
+            this.service.sendMessageSocket(contactName, content);
+            this.updateChatUI(contactName);
+        } else {
+            console.log("REGISTERING AGAIN")
+            await this.service.registerAgain(contactName)
+            this.service.sendMessageSocket(contactName, content);
+            this.updateChatUI(contactName);
+        }
     }
 
     
@@ -285,7 +295,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 
-document.getElementById('messageForm').addEventListener('submit', function (event) {
+document.getElementById('messageForm').addEventListener('submit', async function (event) {
     event.preventDefault();
 
     const messageInput = document.getElementById('message');
@@ -295,11 +305,9 @@ document.getElementById('messageForm').addEventListener('submit', function (even
 
     if (message) {
         console.log('Mensagem enviada:', message);
-
-        uiAdapter.addNewMessage(name, message)
-
-        
         messageInput.value = '';
+        await uiAdapter.addNewMessage(name, message)
+        
     }
 });
 

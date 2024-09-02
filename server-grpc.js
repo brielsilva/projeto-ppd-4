@@ -125,12 +125,17 @@ function getMessages(call, callback) {
 
     redis_client.lRange(`contact:${name}:messages`, 0, -1)
         .then((messages) => {
-            console.log("messages off")
-            console.log(messages)
+            console.log("messages off");
+            console.log(messages);
             const parsedMessages = messages.map((message) => JSON.parse(message));
-            console.log("PARSED MESSAGES")
-            console.log(parsedMessages)
+            console.log("PARSED MESSAGES");
+            console.log(parsedMessages);
+
+            // Callback com as mensagens
             callback(null, { messages: parsedMessages });
+
+            // Limpar a fila e o cache Redis para aquele nome
+            return clearQueueAndCache(name);
         })
         .catch((err) => {
             console.error("Failed to retrieve messages from Redis:", err);
@@ -139,6 +144,27 @@ function getMessages(call, callback) {
                 message: "Failed to retrieve messages from Redis"
             });
         });
+}
+
+async function clearQueueAndCache(name) {
+    try {
+        const queue_name = `contacts_${name}`;
+        
+        // Limpar a fila no RabbitMQ
+        const connection = await amqp.connect(rabbitmq_url);
+        const channel = await connection.createChannel();
+        await channel.assertQueue(queue_name, { durable: true });
+        await channel.purgeQueue(queue_name);
+        console.log(`Fila ${queue_name} purgada com sucesso`);
+
+        // Limpar o cache Redis
+        await redis_client.del(`contact:${name}:messages`);
+        console.log(`Cache Redis para contact:${name}:messages limpo com sucesso`);
+        
+        connection.close();
+    } catch (err) {
+        console.error(`Erro ao limpar fila e cache para ${name}:`, err);
+    }
 }
 
 function searchContact(call, callback) {

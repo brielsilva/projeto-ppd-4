@@ -98,6 +98,28 @@ class Service {
         server.listen(port, () => console.log("Listening on port: ", port));
     }
 
+    async registerAgain(contactName) {
+        try {
+            const contactExists = await this.api.searchContactName(contactName);
+            const contactExistClient = this.contactList.find((obj) => obj.name == contactName);
+            if (contactExists && contactExistClient) {
+                const history = this.getHistory(contactName).history;
+                if (!history) {
+                    this.contactHistory.push({ name: contactName, history: [] });
+                } 
+                this.contactList = this.contactList.filter((obj) => obj.name !== contactName);
+                await this.connectTo(contactExists.ip, contactName, false, false, contactExists.status,false);
+
+                console.log(`Contact ${contactName} has been registered.`);
+                return true;
+            } else {
+                console.log(`Contact ${contactName} does not exist in the server.`);
+            }
+        } catch (error) {
+            console.error("Error searching for contact:", error);
+        }
+    }
+
     handleClientConnection(socket) {
         socket.firstMessageSent = false;
         this.listenClientData(socket);
@@ -242,6 +264,8 @@ class Service {
     onData(socket, data) {
         const { remoteAddress } = socket;
         const type = data.type;
+        console.log("TYPE RECIEVED")
+        console.log(type)
         if (type === "message") {
             const message = data.message;
             let contact = this.contactList.find((obj) => obj.name === message.name);
@@ -274,6 +298,13 @@ class Service {
                 contact.status = data.status; // Convert status to boolean
                 this.handleContactList();
             }
+        }
+
+        if(type === "end") {
+            console.log("CONNECTION END")
+            const contact = this.contactList.find((obj) => obj.name == data.name);
+            contact.connection = null;
+            console.log(contact)
         }
     }
 
@@ -316,10 +347,15 @@ class Service {
     }
 
     removeContact(contactName) {
-        this.contactList = this.contactList.filter(contact => contact.name !== contactName);
         const contact = this.contactList.find(contact => contact.name === contactName);
+        this.contactList = this.contactList.filter(contact => contact.name !== contactName);
         if (contact && contact.connection) {
-            contact.connection.end();
+            console.log("SENDING END")
+            const body = {
+                type: "end",
+                name: this.username
+            }
+            this.sendMessage(contact.connection, JSON.stringify(body));
         }
 
         console.log(`Contato ${contactName} removido da lista de contatos.`);
