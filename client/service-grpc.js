@@ -1,167 +1,92 @@
-// Implementação da lógica de tal forma que na view so seja chamada as funções com os argumentos necessários
-// Comunicação com o Servidor
-const net = require('node:net'); 
-
+const grpc = require("@grpc/grpc-js");
+const protoLoader = require("@grpc/proto-loader");
+const net = require("node:net");
 
 class Api {
     constructor() {
-        this.vm_url = "http://192.168.56.1:3000"
-        this.url = "http://localhost:3000";
+        const PROTO_PATH = "contacts.proto";
+        const packageDefinition = protoLoader.loadSync(PROTO_PATH, {});
+        const proto = grpc.loadPackageDefinition(packageDefinition).contacts;
+        
+        this.client = new proto.ContactService(
+            "localhost:3000",
+            grpc.credentials.createInsecure()
+        );
     }
 
-    async register(contactName, ip) {
-        const endpoint = "/save";
-        const body = {
-            name: contactName,
-            ip: ip,
-            status: true
-        };
-
-        const json = JSON.stringify(body);
-        try {
-            const response = await fetch(this.url + endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: json
-            });
-            return response.json();
-        } catch (e) {
-            if (e.message.includes('Failed to fetch') || e.message.includes('ERR_CONNECTION_REFUSED')) {
-                const response = await fetch(this.vm_url + endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: json
-                });
-                return response.json();
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    async searchContactName(contactName) {
-        const endpoint = "/search?name=" + contactName;
-        try {
-            const response = await fetch(this.url + endpoint)
-            const data = await response.json();
-            return data;
-        } catch (e) {
-            if (e.message.includes('Failed to fetch') || e.message.includes('ERR_CONNECTION_REFUSED')) {
-                const response = await fetch(this.vm_url + endpoint);
-                const data = await response.json();
-                return data;
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    async retrieveMsgOffline(contactName) {
-        const endpoint = `/messages?name=${contactName}`;
-
-        try {
-            const response = await fetch(this.url + endpoint);
-            if (!response.ok) {
-                throw new Error('Failed to retrieve offline messages');
-            }
-
-            const data = await response.json();
-            return data.messages;
-        } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
-                const response = await fetch(this.vm_url + endpoint);
-                if (!response.ok) {
-                    throw new Error('Failed to retrieve offline messages');
+    register(contactName, ip) {
+        return new Promise((resolve, reject) => {
+            const request = { name: contactName, ip: ip, status: true }; // status is now a boolean
+            this.client.SaveContact(request, (error, response) => {
+                if (error) {
+                    return reject(error);
                 }
-
-                const data = await response.json();
-                return data.messages;
-            } else {
-                console.error('Error retrieving offline messages:', error);
-                return [];
-            }
-        }
+                resolve(response);
+            });
+        });
     }
 
-    async sendMessageOffline(sendingTo, name, content, date) {
-        const endpoint = "/message";
-        const body = {
-            sendingTo,
-            name,
-            content,
-            date
-        };
-
-        try {
-            const response = await fetch(this.url + endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
+    searchContactName(contactName) {
+        return new Promise((resolve, reject) => {
+            const request = { name: contactName };
+            this.client.SearchContact(request, (error, response) => {
+                if (error) {
+                    return reject(error);
+                }
+                // Convert the status from string to boolean
+                if (response.contact) {
+                    response.contact.status = response.contact.status === "true";
+                }
+                resolve(response.contact);
             });
-            return response.json();
-        } catch (e) {
-            if (e.message.includes('Failed to fetch') || e.message.includes('ERR_CONNECTION_REFUSED')) {
-                const response = await fetch(this.vm_url + endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-                return response.json();
-            } else {
-                throw e;
-            }
-        }
+        });
     }
 
-    async updateStatus(status, name) {
-        const endpoint = "/status?name=" + name;
-        const body = {
-            status: status
-        };
-        try {
-            const response = await fetch(this.url + endpoint, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
+    retrieveMsgOffline(contactName) {
+        console.log("RETRIEVING MSG OFFLINE")
+        return new Promise((resolve, reject) => {
+            const request = { name: contactName };
+            this.client.GetMessages(request, (error, response) => {
+                if (error) {
+                    return reject(error);
+                }
+                resolve(response.messages);
             });
-            return await response.json();
-        } catch (e) {
-            if (e.message.includes('Failed to fetch') || e.message.includes('ERR_CONNECTION_REFUSED')) {
-                const response = await fetch(this.vm_url + endpoint, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-                return response.json();
-            } else {
-                console.log(e);
-                throw e;
-            }
-        }
+        });
+    }
+
+    sendMessageOffline(sendingTo, name, content, date) {
+        return new Promise((resolve, reject) => {
+            const request = { sendingTo, name, content, date };
+            this.client.SendMessage(request, (error, response) => {
+                if (error) {
+                    return reject(error);
+                }
+                resolve(response);
+            });
+        });
+    }
+
+    updateStatus(status, name) {
+        return new Promise((resolve, reject) => {
+            const request = { status: status, name }; // status is now a boolean
+            this.client.UpdateStatus(request, (error, response) => {
+                if (error) {
+                    return reject(error);
+                }
+                resolve(response);
+            });
+        });
     }
 }
 
-
-
 class Service {
-    constructor(username,status,port,document, vm) {
-        this.api = new Api(vm);
+    constructor(username, status, port, document) {
+        this.api = new Api();
         this.username = username;
-        this.contactList = []; // Lista de Nomes
-        this.contactHistory = []; // Lista de Objetos com {Name: [{name,content}]]}
-        this.status = status;
+        this.contactList = [];
+        this.contactHistory = [];
+        this.status = !!status; // Ensure status is a boolean
         this.port = port;
         this.document = document;
         this.firstMessageSent = false;
@@ -182,7 +107,7 @@ class Service {
         return { host, port };
     }
 
-    connectTo(address, contactName, sendKnownHosts = true, loopback = false, status=true, add=true) {
+    connectTo(address, contactName, sendKnownHosts = true, loopback = false, status = true, add = true) {
         return new Promise((resolve, reject) => {
             const splittedAddress = address.split(":");
     
@@ -194,15 +119,15 @@ class Service {
             const host = splittedAddress.join(":");
     
             const socket = net.createConnection({ port, host }, () => {
-                this.contactList.push({name: contactName, connection: socket, status: status});
+                this.contactList.push({ name: contactName, connection: socket, status: !!status }); // Ensure status is a boolean
                 this.listenClientData(socket);
                 this.sendFirstMessage(socket, this.port, loopback, host, port, contactName, this.status);
-                if(add) {
+                if (add) {
                     this.handleContactList();
                 }
                 resolve();
             });
-    
+
             socket.on('error', (err) => {
                 reject(err);
             });
@@ -215,34 +140,28 @@ class Service {
         }
 
         if (this.firstMessageSent) {
-            // If this socket has already sent the first message, return to avoid looping
             return;
         }
 
-
         const remoteAddress = socket.remoteAddress;
         const { myPort, name, status } = data;
-
         console.log("DATA HANDLE FIRST MESSAGE")
         console.log(name)
         console.log(status)
         console.log(remoteAddress)
         console.log(myPort)
-        
-        const hostObj = this.getHostObj(remoteAddress, myPort);
-        //this.handleContactList();
 
         if (!data.loopback) {
-            this.connectTo(`${remoteAddress}:${myPort}`, name, true, true, status,false);
+            this.connectTo(`${remoteAddress}:${myPort}`, name, true, true, status, false);
         }
     }
 
-    sendFirstMessage(socket, myPort, loopback = false, host,port, contactName) {
+    sendFirstMessage(socket, myPort, loopback = false, host, port, contactName) {
         if (this.firstMessageSent && this.contactList.map((obj) => obj.port).includes(port)) {
-            return; // Prevent sending the first message again if it was already sent
+            return;
         }
-        if(this.contactList.find((obj) => obj.name == contactName )["port"] == undefined) {
-            this.contactList.find((obj) => obj.name == contactName )["port"] = port;
+        if (this.contactList.find((obj) => obj.name == contactName)["port"] == undefined) {
+            this.contactList.find((obj) => obj.name == contactName)["port"] = port;
         }
 
         const obj = {
@@ -250,16 +169,15 @@ class Service {
             myPort,
             loopback,
             host,
-            status: this.status,
+            status: this.status, // status is already a boolean
             name: this.username
         };
 
-        this.firstMessageSent = true; 
+        this.firstMessageSent = true;
 
         this.sendMessage(socket, JSON.stringify(obj));
     }
 
-    // Função que implementa a escuta de novas mensagens
     listenClientData(socket) {
         this.onConnection(socket);
 
@@ -276,16 +194,18 @@ class Service {
     async firstRegister(contactName, ip) {
         return await this.api.register(contactName, ip);
     }
-    // Via socket
+
     async sendMessageSocket(contactName, content) {
+        console.log("Searching Contact")
         const contact = this.contactList.find((obj) => obj.name === contactName);
-    
+
         if (!contact) {
             throw new Error('Contato não existe');
         }
-    
-        // Verifica o status do contato
-        if (contact.status) {
+
+        console.log(contact)
+
+        if (contact.status) { // status is a boolean
             const body = {
                 type: "message",
                 message: {
@@ -296,16 +216,17 @@ class Service {
             this.updateHistory(contactName, content, false);
             this.sendMessage(contact.connection, JSON.stringify(body));
         } else {
-            // Se o status for false, envia a mensagem para o servidor
             this.updateHistory(contactName, content, false);
             await this.api.sendMessageOffline(contactName, this.username, content, new Date());
         }
     }
 
     async updateStatus(status) {
-        this.status = status
-        this.broadcastMessage(JSON.stringify({type: "status", status: this.status, name: this.username}));
-        return await this.api.updateStatus(status,this.username);
+        this.status = !!status;
+        console.log("UPDATE STATUS BROADCAST")
+        console.log(this.status)
+        this.broadcastMessage(JSON.stringify({ type: "status", status: this.status, name: this.username }));
+        return await this.api.updateStatus(this.status, this.username);
     }
 
     notifyNewMessage(contactName) {
@@ -318,57 +239,51 @@ class Service {
         }
     }
 
-
     onData(socket, data) {
         const { remoteAddress } = socket;
         const type = data.type;
         if (type === "message") {
             const message = data.message;
-            // Verifica se o contato já existe na lista de contatos
             let contact = this.contactList.find((obj) => obj.name === message.name);
             if (!contact) {
-                // Adiciona o contato à lista se ainda não existir
                 this.contactList.push({ name: message.name, connection: socket, status: true });
                 this.contactHistory.push({ name: message.name, history: [] });
-                console.log(`Contato ${message.name} adicionado após o envio da mensagem.`);
-                this.handleContactList(); // Atualiza a lista de contatos na UI
+                this.handleContactList();
             }
             contact = this.contactList.find((obj) => obj.name === message.name);
-            if(!contact) {
+            if (!contact) {
                 this.contactList.push({ name: message.name, connection: socket, status: true });
             }
 
             let history = this.contactHistory.find((obj) => obj.name == message.name);
-            if(!history) {
+            if (!history) {
                 this.contactHistory.push({ name: message.name, history: [] });
                 history = this.contactHistory.find((obj) => obj.name == message.name);
             }
             this.updateHistory(message.name, message.content, true);
             this.updateChatUI(message.name);
-            this.notifyNewMessage(message.name)
-            this.handleContactList(); // Atualiza a lista de contatos na UI
+            this.notifyNewMessage(message.name);
+            this.handleContactList();
         }
-    
+
         if (type === "status") {
+            console.log("STATUS")
             const contact = this.contactList.find((obj) => obj.name == data.name);
-            if(contact) {
-                contact.status = data.status;
+            console.log(data.status)
+            if (contact) {
+                contact.status = data.status; // Convert status to boolean
                 this.handleContactList();
             }
         }
     }
 
-    onConnection(socket) {
+    onConnection(socket) {}
 
-    }
-
-    // Enviar o nome e o status para cada um
     broadcastMessage(jsonData) {
         this.contactList.map((obj) => obj.connection).forEach((socket) => this.sendMessage(socket, jsonData));
     }
 
     sendMessage(socket, jsonData) {
-
         try {
             if (!socket._writableState.ended) {
                 socket.write(jsonData);
@@ -379,20 +294,16 @@ class Service {
         }
     }
 
-    // Registrar meus contatos
-    // Vou receber o nome do cantato e atrelar ao usuário
     async registerContact(contactName) {
         try {
-            // Primeiro, busca o contato no servidor
             const contactExists = await this.api.searchContactName(contactName);
 
-            // Se o contato existir no servidor, adiciona à lista de contatos
             if (contactExists) {
                 const history = this.getHistory(contactName);
-                if(!history) {
-                    this.contactHistory.push({ name: contactName, history: [] });    
+                if (!history) {
+                    this.contactHistory.push({ name: contactName, history: [] });
                 }
-                await this.connectTo(contactExists.ip,contactName, false,false,contactExists.status);
+                await this.connectTo(contactExists.ip, contactName, false, false, contactExists.status);
 
                 console.log(`Contact ${contactName} has been registered.`);
                 return true;
@@ -408,23 +319,22 @@ class Service {
         this.contactList = this.contactList.filter(contact => contact.name !== contactName);
         const contact = this.contactList.find(contact => contact.name === contactName);
         if (contact && contact.connection) {
-            contact.connection.end(); // Encerra a conexão do socket, se ainda existir
+            contact.connection.end();
         }
-    
+
         console.log(`Contato ${contactName} removido da lista de contatos.`);
     }
 
     removeContactHistory(contactName) {
         this.contactHistory = this.contactHistory.filter(history => history.name !== contactName);
-        
+
         console.log(`Histórico de mensagens do contato ${contactName} removido.`);
     }
 
     handleContactList() {
-        
         const contactListDOM = document.getElementsByClassName('contact-list')[0];
-        
-        while(contactListDOM.firstChild) {
+
+        while (contactListDOM.firstChild) {
             contactListDOM.removeChild(contactListDOM.firstChild);
         }
         const contactList = this.getContacts();
@@ -437,7 +347,7 @@ class Service {
             contactName.innerHTML = element.name;
             contactName.style.background = element.status ? "white" : "gray";
             contactBox.appendChild(contactName);
-    
+
             const removeButton = document.createElement('button');
             removeButton.innerHTML = "Remover";
             removeButton.classList.add('remove-btn');
@@ -445,7 +355,7 @@ class Service {
             contactBox.appendChild(removeButton);
 
             contactListDOM.appendChild(contactBox);
-    
+
             contactBox.addEventListener('click', (e) => {
                 e.preventDefault();
                 const contactInfo = document.querySelector('.contact-info');
@@ -453,136 +363,114 @@ class Service {
                 this.updateChatUI(element.name);
                 contactBox.classList.remove('new-message');
             });
-    
+
             removeButton.addEventListener('click', (e) => {
                 e.preventDefault();
-                //
                 this.removeContact(element.name);
                 this.removeContactHistory(element.name);
                 const contactInfo = document.querySelector('.contact-info');
-                if(contactInfo.innerHTML == element.name) {
+                if (contactInfo.innerHTML == element.name) {
                     contactInfo.innerHTML = '';
                 }
-    
-                // Atualiza a lista de contatos
+
                 this.handleContactList();
             });
         });
     }
 
-
     updateChatUI(contactName) {
         if (document.querySelector('.contact-info').innerHTML !== contactName) {
             return;
         }
-    
+
         const chatHistoryData = this.getHistory(contactName);
-    
-    
+
         const chatHistory = document.querySelector('.chat-history');
-    
+
         chatHistory.innerHTML = '';
-    
+
         if (chatHistoryData && chatHistoryData.history) {
             chatHistoryData.history.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
             chatHistoryData.history.forEach(message => {
                 const messageContainer = document.createElement('div');
                 messageContainer.className = 'chat-message';
                 messageContainer.setAttribute('target', message.name === this.username ? 'self' : 'other');
-    
+
                 const messageText = document.createElement('span');
                 messageText.textContent = message.content;
-    
+
                 messageContainer.appendChild(messageText);
                 chatHistory.appendChild(messageContainer);
             });
-    
+
             chatHistory.scrollTop = chatHistory.scrollHeight;
         }
     }
 
-
-    // Vai ser chamado tanto ao receber uma mensagem, quanto ao enviar uma mensagem
-    // Recieve = true => Recebi, false => Enviando
-    updateHistory(contactName,content, recieve = true, data) {
+    updateHistory(contactName, content, recieve = true, date) {
         const existContact = this.contactList.find((obj) => obj.name == contactName);
-        if(!existContact) {
+        if (!existContact) {
             throw new Error('Contato não existe');
         }
-        // Verifica se o contato está online ou não
-        // Envia diretamente se conseguir, se não envia pro servidor
         let history = this.contactHistory.find((obj) => obj.name == contactName);
-        if(!history) {
-            this.contactHistory.push({name: contactName, history: []});
+        if (!history) {
+            this.contactHistory.push({ name: contactName, history: [] });
             history = this.contactHistory.find((obj) => obj.name == contactName);
         }
-        history['history'].push({name:  recieve ? contactName : this.username, content, data: data ? data : new Date(Date.now())});
+        history['history'].push({ name: recieve ? contactName : this.username, content, date: date ? date : new Date(Date.now()) });
     }
 
-    // Buscar o histórico de mensagens com X contato
     getHistory(contactName) {
-        // Pega as mensages na memória e tbm na fila e retorna a mais atualizada
         return this.contactHistory.find((obj) => obj.name == contactName);
     }
-    
-    // Pegar todos os contatos atuais
+
     getContacts() {
         return this.contactList.map(obj => ({ name: obj['name'], status: obj['status'] }));
     }
 
     async getMsgsOffline() {
         try {
-        
             const messages = await this.api.retrieveMsgOffline(this.username);
-            messages.sort((a, b) => new Date(a.date) - new Date(b.date))
-            
+            if(messages) {
+                messages.sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+
             for (const message of messages) {
-                console.log("MENSAGEM RECEBIDA DO SERVIDOR OFFLINE")
-                console.log(message)
                 const { sendingTo, name, content, date } = message;
-    
+
                 if (sendingTo !== this.username) {
                     continue;
                 }
-    
-                console.log(this.contactList)
+
                 let contactExists = this.contactList.find(contact => contact.name === name);
-    
+
                 if (!contactExists) {
                     contactExists = await this.registerContact(name);
-                    console.log(contactExists)
                 }
-    
+
                 let history = this.getHistory(name);
                 if (!history) {
                     this.contactHistory.push({ name: name, history: [] });
                     history = this.getHistory(name);
                 }
-    
-                const messageExists = history.history.some(hist => 
+
+                const messageExists = history.history.some(hist =>
                     hist.content === content && new Date(hist.date).getTime() === new Date(date).getTime()
                 );
-                
-                console.log("Mensagem existe?", messageExists);
-                
+
                 if (!messageExists) {
-                    console.log("Chamando updateHistory");
-                    
                     this.updateHistory(name, content, true, date);
                     this.updateChatUI(name);
                     this.notifyNewMessage(name);
-                } else {
-                    console.log("Mensagem duplicada não adicionada:", content);
                 }
             }
-    
-            console.log("Mensagens offline recuperadas e histórico atualizado.");
-            this.handleContactList()
+
+            this.handleContactList();
         } catch (error) {
             console.error("Erro ao recuperar mensagens offline:", error);
         }
     }
 }
 
-module.exports = Service
+module.exports = Service;

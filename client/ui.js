@@ -1,5 +1,6 @@
 // Middlaware que conversa com o servidor e atualiza a UI
-const Service = require('./service')
+// const Service = require('./service')
+const Service = require('./service-grpc')
 
 class UiAdapter {
     constructor(username, status, port) {
@@ -37,23 +38,30 @@ class UiAdapter {
             contactBox.classList.add('contact');
             contactBox.style.background = element.status ? "white" : "gray";
 
+            
+            
             const contactName = document.createElement('span');
             contactName.innerHTML = element.name;
             contactName.style.background = element.status ? "white" : "gray";
-            contactBox.appendChild(contactName);
-    
+            
+            const contactContainer = document.createElement('div');
+            contactContainer.style.width = '20px';
+            contactContainer.style.height = '20px';
+            contactContainer.style.cursor = 'pointer';
+            contactContainer.appendChild(contactName);
             
             const removeButton = document.createElement('button');
             removeButton.innerHTML = "Remover";
             removeButton.classList.add('remove-btn');
             removeButton.style.marginLeft = "10px"; 
+            contactBox.appendChild(contactContainer)
             contactBox.appendChild(removeButton);
 
             
             contactListDOM.appendChild(contactBox);
     
             
-            contactName.addEventListener('click', (e) => {
+            contactContainer.addEventListener('click', (e) => {
                 e.preventDefault();
                 const contactInfo = document.querySelector('.contact-info');
                 contactInfo.innerHTML = element.name;
@@ -141,7 +149,7 @@ class UiAdapter {
         chatHistory.innerHTML = '';
     
         if (chatHistoryData && chatHistoryData.history) {
-            chatHistoryData.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+            chatHistoryData.history.sort((a, b) => new Date(a.date) - new Date(b.date));
     
             chatHistoryData.history.forEach(message => {
                 const messageContainer = document.createElement('div');

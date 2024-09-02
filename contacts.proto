@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package contacts;
+
+service ContactService {
+    rpc SaveContact (SaveContactRequest) returns (SaveContactResponse);
+    rpc GetMessages (GetMessagesRequest) returns (GetMessagesResponse);
+    rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);
+    rpc SearchContact (SearchContactRequest) returns (SearchContactResponse);
+    rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+message Contact {
+    string name = 1;
+    string ip = 2;
+    string status = 3;
+}
+
+message SaveContactRequest {
+    string name = 1;
+    string ip = 2;
+    string status = 3;
+}
+
+message SaveContactResponse {
+    string message = 1;
+    Contact contact = 2;
+}
+
+message SendMessageRequest {
+    string sendingTo = 1;
+    string name = 2;
+    string content = 3;
+    string date = 4;
+}
+
+message SendMessageResponse {
+    string message = 1;
+}
+
+message GetMessagesRequest {
+    string name = 1;
+}
+
+message GetMessagesResponse {
+    repeated SendMessageRequest messages = 1;
+}
+message SearchContactRequest {
+    string name = 1;
+}
+
+message SearchContactResponse {
+    Contact contact = 1;
+}
+
+message UpdateStatusRequest {
+    string name = 1;
+    string status = 2;
+}
+
+message UpdateStatusResponse {
+    Contact contact = 1;
+}
