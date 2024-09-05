@@ -146,7 +146,7 @@ class Service {
                 this.sendFirstMessage(socket, this.port, loopback, host, port, contactName, this.status);
                 if (add) {
                     this.handleContactList();
-                }
+                } 
                 resolve();
             });
 
@@ -161,9 +161,9 @@ class Service {
             return;
         }
 
-        if (this.firstMessageSent) {
-            return;
-        }
+        // if (this.firstMessageSent) {
+        //     return;
+        // }
 
         const remoteAddress = socket.remoteAddress;
         const { myPort, name, status } = data;
